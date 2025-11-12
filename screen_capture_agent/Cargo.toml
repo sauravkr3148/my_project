@@ -1,0 +1,33 @@
+[package]
+name = "agent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", default-features = false, features = ["rt", "rt-multi-thread", "macros", "sync", "time", "net"] }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+futures-util = "0.3"
+byteorder = "1.5"
+winapi = { version = "0.3", features = ["winuser", "wingdi", "timeapi"] }
+enigo = "0.1"
+lazy_static = "1.4.0"
+windows = { version = "0.52", features = ["Win32_Foundation", "Win32_UI_HiDpi", "Win32_System_Threading", "Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug", "Win32_Security"] }
+anyhow = "1.0"
+url="2.0"
+native-tls ="0.2"
+flume = "0.11"
+once_cell = "1.21.3"
+log = "0.4"
+env_logger = "0.11"
+# VP8 software encoding (3-5x faster than VP9)
+scrap = { path = "libs/scrap" }
+parking_lot = "0.12"
+tokio-native-tls = "0.3"
+rust_c1rmm_agent = { path = "../file_agent" }
+
+[build-dependencies]
+cc = "1.0"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
+

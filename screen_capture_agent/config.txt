@@ -1,0 +1,1 @@
+wss://192.168.0.16 443 ASUS2 192.168.0.55 8080 proxyu01 kennethcf none 21d5e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC42LjEyNC1zYXVyYXZ2dnZ2dnZ2dnZ2dnZ2 afJveHl1MDE6a2VubmV0aGNm isNoAuth

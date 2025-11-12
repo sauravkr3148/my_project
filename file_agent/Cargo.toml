@@ -1,0 +1,45 @@
+[package]
+name = "rust_c1rmm_agent"
+version = "1.0.0"
+edition = "2021"
+authors = ["Saurav kumar"]
+description = "C1RMM File Agent - WebSocket File Management Agent"
+license = "MIT"
+repository = "https://github.com/yourusername/rust_c1rmm_agent"
+keywords = ["websocket", "file-management", "agent", "remote"]
+categories = ["network-programming", "filesystem"]
+
+[dependencies]
+# Core async runtime with required features
+tokio = { version = "1.0", features = ["rt-multi-thread", "net", "time", "signal", "sync", "macros"] }
+
+# WebSocket communication
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+native-tls = "0.2"
+futures-util = "0.3"
+url = "2.0"
+tokio-native-tls = "0.3"
+
+# JSON handling
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# File operations
+base64 = "0.22"
+zip = "0.6"
+walkdir = "2"
+
+# System information
+sysinfo = "0.30"
+chrono = { version = "0.4", features = ["clock"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+log = "0.4"
+env_logger = "0.10"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winuser", "processthreadsapi", "handleapi"] }

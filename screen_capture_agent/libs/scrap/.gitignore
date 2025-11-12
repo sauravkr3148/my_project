@@ -1,0 +1,12 @@
+/target/
+**/*.rs.bk
+Cargo.lock
+generated/
+BUILD_ON_WINDOWS.md
+DIAGNOSE_AND_FIX.md
+FINAL_PUSH.sh
+PUSH_COMMAND.sh
+PUSH_INSTRUCTIONS.txt
+WINDOWS_BUILD_FIXES.md
+diagnose.bat
+test_build.ps1
