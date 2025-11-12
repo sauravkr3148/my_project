@@ -1,4 +1,3 @@
-use crate::codec::YuvConverter;
 use crate::qos::VideoQoS;
 use crate::video_encoder::{EnhancedVideoEncoder, VideoEncoderConfig};
 use scrap::CodecFormat;
@@ -30,44 +29,6 @@ pub struct CaptureThreadHandle {
 }
 
 impl CaptureThreadHandle {
-    fn crop_frame_data(
-        data: &[u8],
-        stride: usize,
-        original_width: usize,
-        original_height: usize,
-        target_width: usize,
-        target_height: usize,
-    ) -> Vec<u8> {
-        if original_width == target_width && original_height == target_height {
-            return data.to_vec();
-        }
-
-        let bytes_per_pixel = 4; // BGRA format
-        let mut cropped_data = Vec::with_capacity(target_width * target_height * bytes_per_pixel);
-
-        // Calculate cropping offsets (center crop)
-        let width_diff = original_width - target_width;
-        let height_diff = original_height - target_height;
-        let x_offset = width_diff / 2;
-        let y_offset = height_diff / 2;
-
-        for y in 0..target_height {
-            let src_y = y + y_offset;
-            if src_y >= original_height {
-                break;
-            }
-
-            let src_start = src_y * stride + x_offset * bytes_per_pixel;
-            let src_end = src_start + target_width * bytes_per_pixel;
-
-            if src_start + target_width * bytes_per_pixel <= data.len() {
-                cropped_data.extend_from_slice(&data[src_start..src_end]);
-            }
-        }
-
-        cropped_data
-    }
-
     pub fn spawn(
         codec: CodecFormat,
         video_qos: Arc<Mutex<VideoQoS>>,
@@ -217,17 +178,21 @@ impl CaptureThreadHandle {
 
             let target_width = encoder_width;
             let target_height = encoder_height;
-            let mut crop_notice_logged = false;
             let mut stride_notice_logged = false;
-            let mut repack_notice_logged = false;
-            let mut frame_prep_log_count: usize = 0;
-            let mut stride_mismatch_log_count: usize = 0;
             let mut encode_success_log_count: usize = 0;
             let mut encode_none_log_count: usize = 0;
-            const MAX_PREP_LOGS: usize = 6;
-            const MAX_STRIDE_MISMATCH_LOGS: usize = 10;
             const MAX_ENCODE_SUCCESS_LOGS: usize = 6;
             const MAX_ENCODE_NONE_LOGS: usize = 10;
+
+            let encoder_yuv_format = match encoder.yuv_format() {
+                Some(fmt) => fmt,
+                None => {
+                    log::error!("Failed to get encoder YUV format");
+                    return;
+                }
+            };
+            let mut yuv_buffer: Vec<u8> = Vec::new();
+            let mut mid_data: Vec<u8> = Vec::new();
 
             let debug_force_capture_frames: u64 = std::env::var("AGENT_FORCE_CAPTURE_FRAMES")
                 .ok()
@@ -270,17 +235,7 @@ impl CaptureThreadHandle {
                 qos.store_bitrate(encoder.bitrate());
             }
 
-            let mut _yuv_converter = match YuvConverter::new(target_width, target_height) {
-                Ok(c) => c,
-                Err(e) => {
-                    log::error!(" Failed to create YUV converter: {}", e);
-                    return;
-                }
-            };
             let mut consecutive_would_block = 0u32;
-            let mut last_frame_data: Option<(Vec<u8>, u32, i64)> = None;
-            let repeat_encode_max = 3;
-            let mut repeat_encode_counter = 0u32;
             while running_clone.load(Ordering::Relaxed) {
                 let loop_start = Instant::now();
                 let clients = active_clients_clone.load(Ordering::Relaxed);
@@ -299,7 +254,6 @@ impl CaptureThreadHandle {
                     } else {
                         thread::sleep(Duration::from_millis(100));
                         consecutive_would_block = 0;
-                        repeat_encode_counter = 0;
                         continue;
                     }
                 }
@@ -333,7 +287,6 @@ impl CaptureThreadHandle {
 
                 match res {
                     Ok(frame) => {
-                        repeat_encode_counter = 0;
                         would_block_count = 0;
                         consecutive_would_block = 0;
                         // RustDesk exact: portable_service.rs line 401 - reset on success
@@ -343,7 +296,11 @@ impl CaptureThreadHandle {
                             continue;
                         }
 
-                        let (data, stride) = match &frame {
+                        if !frame.valid() {
+                            continue;
+                        }
+
+                        let stride = match &frame {
                             scrap::Frame::PixelBuffer(pixbuf) => {
                                 let stride_vec = pixbuf.stride();
                                 let original_stride = if stride_vec.is_empty() {
@@ -352,140 +309,47 @@ impl CaptureThreadHandle {
                                     stride_vec[0]
                                 };
 
-                                if original_stride != encoder_expected_stride
-                                    && stride_mismatch_log_count < MAX_STRIDE_MISMATCH_LOGS
-                                {
-                                    log::warn!(
-                                        "Capture stride {} differs from encoder expected stride {} (target {}x{})",
-                                        original_stride,
-                                        encoder_expected_stride,
-                                        target_width,
-                                        target_height
-                                    );
-                                    stride_mismatch_log_count += 1;
-                                } else if !stride_notice_logged {
+                                if !stride_notice_logged {
                                     log::info!(
-                                        "Capture stride matches encoder expectation (stride={})",
-                                        original_stride
+                                        "Capture stride {} (encoder expected stride {})",
+                                        original_stride,
+                                        encoder_expected_stride
                                     );
                                     stride_notice_logged = true;
                                 }
-
-                                const BYTES_PER_PIXEL: usize = 4;
-                                let expected_stride = target_width * BYTES_PER_PIXEL;
-                                let expected_len = target_width * target_height * BYTES_PER_PIXEL;
-                                let mut prepared_stride_usize = expected_stride;
-                                let mut prepared_data = Vec::with_capacity(expected_len);
-
-                                if width != target_width || height != target_height {
-                                    if !crop_notice_logged {
-                                        log::warn!(
-                                            "Cropping captured frame from {}x{} to {}x{} to satisfy encoder requirements",
-                                            width,
-                                            height,
-                                            target_width,
-                                            target_height
-                                        );
-                                        crop_notice_logged = true;
-                                    }
-                                    prepared_data = Self::crop_frame_data(
-                                        pixbuf.data(),
-                                        original_stride,
-                                        width,
-                                        height,
-                                        target_width,
-                                        target_height,
-                                    );
-                                    prepared_stride_usize = expected_stride;
-                                } else if original_stride != expected_stride {
-                                    if !repack_notice_logged {
-                                        log::warn!(
-                                            "Repacking frame data to remove stride padding: capture stride {} -> encoder stride {}",
-                                            original_stride,
-                                            expected_stride
-                                        );
-                                        repack_notice_logged = true;
-                                    }
-                                    let row_len = target_width * BYTES_PER_PIXEL;
-                                    let data_ref = pixbuf.data();
-                                    prepared_data.reserve_exact(expected_len);
-                                    for y in 0..target_height {
-                                        let start = y * original_stride;
-                                        let end = start + row_len;
-                                        if end <= data_ref.len() {
-                                            prepared_data.extend_from_slice(&data_ref[start..end]);
-                                        } else {
-                                            log::warn!(
-                                                "Stride repack exceeded source buffer (row={}, start={}, end={}, len={})",
-                                                y,
-                                                start,
-                                                end,
-                                                data_ref.len()
-                                            );
-                                            break;
-                                        }
-                                    }
-                                    prepared_stride_usize = expected_stride;
-                                } else {
-                                    prepared_data = pixbuf.data().to_vec();
-                                    prepared_stride_usize = original_stride;
-                                }
-
-                                if prepared_data.len() != expected_len {
-                                    log::warn!(
-                                        "Prepared frame data length {} does not match expected {} ({}x{}x{})",
-                                        prepared_data.len(),
-                                        expected_len,
-                                        target_width,
-                                        target_height,
-                                        BYTES_PER_PIXEL
-                                    );
-                                } else if frame_prep_log_count < MAX_PREP_LOGS {
-                                    log::info!(
-                                        "Frame prep {}: capture {}x{} stride={} -> prepared stride {} len={} timestamp={}",
-                                        frame_prep_log_count + 1,
-                                        width,
-                                        height,
-                                        original_stride,
-                                        prepared_stride_usize,
-                                        prepared_data.len(),
-                                        ms
-                                    );
-                                    frame_prep_log_count += 1;
-                                }
-
-                                let prepared_stride_u32 = prepared_stride_usize as u32;
-                                last_frame_data =
-                                    Some((prepared_data.clone(), prepared_stride_u32, ms));
-                                (prepared_data, prepared_stride_usize)
+                                original_stride
                             }
                             _ => {
                                 continue;
                             }
                         };
 
-                        if stride != encoder_expected_stride
-                            && stride_mismatch_log_count < MAX_STRIDE_MISMATCH_LOGS
-                        {
-                            log::warn!(
-                                "Prepared frame stride {} still differs from encoder expected stride {} (encoder frame count={})",
-                                stride,
-                                encoder_expected_stride,
-                                encoder.frame_count()
-                            );
-                            stride_mismatch_log_count += 1;
-                        }
-
                         if encode_success_log_count == 0 {
                             log::info!(
-                                "Encoding frame start: stride={}, expected_stride={}, data_len={}",
+                                "Encoding frame start: stride={}, expected_stride={}",
                                 stride,
                                 encoder_expected_stride,
-                                data.len()
                             );
                         }
 
-                        match encoder.encode_frame(&data, stride, ms) {
+                        let encode_input = match frame.to(
+                            encoder_yuv_format.clone(),
+                            &mut yuv_buffer,
+                            &mut mid_data,
+                        ) {
+                            Ok(input) => input,
+                            Err(e) => {
+                                log::warn!(
+                                    "Failed to convert frame to YUV ({}x{}): {}",
+                                    width,
+                                    height,
+                                    e
+                                );
+                                continue;
+                            }
+                        };
+
+                        match encoder.encode_input(encode_input, ms) {
                             Ok(Some(encoded_data)) => {
                                 frame_count += 1;
                                 let is_keyframe = encoder.was_last_frame_keyframe();
@@ -537,42 +401,28 @@ impl CaptureThreadHandle {
                                 }
                             }
                             Ok(None) => {
-                                log::warn!(
-                                    "Encoder returned no payload (frame_count={}, encoder frame count={}, timestamp={}, stride={}, expected_stride={}, data_len={}). Attempting to reconfigure encoder...",
-                                    frame_count,
-                                    encoder.frame_count(),
-                                    ms,
-                                    stride,
-                                    encoder_expected_stride,
-                                    data.len()
-                                );
-                                last_frame_data = None;
-                                if encode_none_log_count < MAX_ENCODE_NONE_LOGS {
-                                    log::warn!(
-                                        "Encoder returned no payload (encoder frame count={}, timestamp={}, prepared_stride={}, expected_stride={})",
+                                if encode_none_log_count == 0 {
+                                    log::info!(
+                                        "Encoder produced no payload (frame_count={}, encoder frame count={}, timestamp={}, stride={}, expected_stride={}). This is normal when the frame has no changes.",
+                                        frame_count,
                                         encoder.frame_count(),
                                         ms,
                                         stride,
                                         encoder_expected_stride
                                     );
-                                    encode_none_log_count += 1;
-                                }
-
-                                // Attempt to reconfigure encoder with padding strategy
-                                let padded_width = stride / 4;
-                                if padded_width != encoder_expected_stride / 4 {
-                                    log::warn!(
-                                        "Padding frame from width {} to {} to satisfy encoder stride requirements",
-                                        padded_width,
-                                        encoder_expected_stride / 4
+                                } else if encode_none_log_count < MAX_ENCODE_NONE_LOGS {
+                                    log::debug!(
+                                        "Encoder produced no payload (encoder frame count={}, timestamp={}, stride={}, expected_stride={})",
+                                        encoder.frame_count(),
+                                        ms,
+                                        stride,
+                                        encoder_expected_stride
                                     );
                                 }
-
-                                // No payload after reconfiguration, continue loop
+                                encode_none_log_count += 1;
                                 continue;
                             }
                             Err(e) => {
-                                last_frame_data = None;
                                 log::error!(
                                     "Encode error after {} frames (encoder frame count={}, timestamp={}, stride={}, expected_stride={}, data_len={}): {}",
                                     frame_count,
@@ -580,7 +430,7 @@ impl CaptureThreadHandle {
                                     ms,
                                     stride,
                                     encoder_expected_stride,
-                                    data.len(),
+                                    yuv_buffer.len(),
                                     e
                                 );
                             }
@@ -591,35 +441,6 @@ impl CaptureThreadHandle {
                         consecutive_would_block += 1;
 
                         // RustDesk recovery: Try to re-encode last frame for a few attempts, then skip
-                        if let Some((ref last_data, last_stride, last_ms)) = last_frame_data {
-                            if repeat_encode_counter < repeat_encode_max {
-                                repeat_encode_counter += 1;
-                                match encoder.encode_frame(last_data, last_stride as usize, last_ms)
-                                {
-                                    Ok(Some(encoded_data)) => {
-                                        let is_keyframe = encoder.was_last_frame_keyframe();
-                                        let frame_data = FrameData {
-                                            data: encoded_data,
-                                            timestamp: last_ms,
-                                            is_keyframe,
-                                        };
-                                        if let Ok(_) = frame_tx.try_send(frame_data) {
-                                            frames_sent += 1;
-                                            send_counter += 1;
-                                        }
-                                        // Reset counter on successful re-encode
-                                        if consecutive_would_block < 10 {
-                                            consecutive_would_block = 0;
-                                        }
-                                    }
-                                    _ => {}
-                                }
-                            } else {
-                                // After max re-encodes, skip frame to maintain real-time performance
-                                frames_dropped += 1;
-                            }
-                        }
-
                         // RustDesk recovery: After many consecutive failures, try shorter timeout
                         // This helps recover from temporary DXGI issues
                         if consecutive_would_block > 50 && consecutive_would_block % 10 == 0 {
