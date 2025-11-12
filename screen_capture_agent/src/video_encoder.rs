@@ -1,9 +1,8 @@
-use crate::codec::YuvConverter;
 use crate::qos::VideoQoS;
 use log::{debug, info, warn};
 use scrap::codec::{Encoder, EncoderCfg, BR_BALANCED};
 use scrap::vpxcodec::{VpxEncoderConfig, VpxVideoCodecId};
-use scrap::{video_frame, CodecFormat, EncodeInput, VideoFrame};
+use scrap::{video_frame, CodecFormat, EncodeInput, EncodeYuvFormat, VideoFrame};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 const BR_MAX: f32 = 4.0;
@@ -15,14 +14,16 @@ const QUALITY_ADJUST_INTERVAL: Duration = Duration::from_secs(5);
 const FRAME_SIZE_HISTORY_LEN: usize = 20;
 
 pub fn align_dimensions(width: usize, height: usize) -> (usize, usize) {
-    let aligned_width = if width >= 16 {
-        width & !0xF
-    } else if width >= 2 {
-        width & !1
-    } else {
+    let aligned_width = if width % 2 == 0 {
         width
+    } else {
+        width.saturating_sub(1)
     };
-    let aligned_height = if height >= 2 { height & !1 } else { height };
+    let aligned_height = if height % 2 == 0 {
+        height
+    } else {
+        height.saturating_sub(1)
+    };
     (aligned_width, aligned_height)
 }
 
@@ -63,7 +64,7 @@ impl VideoEncoderConfig {
         let bitrate = match (aligned_width, aligned_height) {
             (1920, 1080) => 2_500_000, // Lower for VP8
             (1280, 720) => 1_500_000,
-            (1360, 768) => 1_500_000,
+            (1366, 768) => 1_500_000,
             _ => 800_000,
         };
 
@@ -158,8 +159,6 @@ pub struct EnhancedVideoEncoder {
     config: VideoEncoderConfig,
     frame_count: u64,
     last_keyframe: u64,
-    yuv_converter: YuvConverter,
-    mid_data: Vec<u8>,
     last_encode_time: Instant,
     encode_stats: EncodeStats,
     frame_size_tracker: FrameSizeTracker,
@@ -209,8 +208,6 @@ impl EnhancedVideoEncoder {
                 (None, config, true)
             }
         };
-        let yuv_converter = YuvConverter::new(actual_config.width, actual_config.height)
-            .map_err(|e| format!("Failed to create YUV converter: {}", e))?;
         if dummy_mode {
             warn!(
                 "Enhanced video encoder initialized in DUMMY MODE: {}x{} (no actual encoding)",
@@ -232,8 +229,6 @@ impl EnhancedVideoEncoder {
             config: actual_config,
             frame_count: 0,
             last_keyframe: 0,
-            yuv_converter,
-            mid_data: Vec::new(),
             last_encode_time: Instant::now(),
             encode_stats: EncodeStats::default(),
             frame_size_tracker: FrameSizeTracker::default(),
@@ -471,8 +466,8 @@ impl EnhancedVideoEncoder {
         let safe_width = config.width as u32;
         let safe_height = config.height as u32;
         let adjusted_quality = match (config.width, config.height) {
-            (1360, 768) => {
-                debug!("Applying special quality adjustment for 1360x768 resolution");
+            (1366, 768) => {
+                debug!("Applying special quality adjustment for 1366x768 resolution");
                 (config.quality.ratio * 0.8).max(BR_MIN_HIGH_RESOLUTION)
             }
             _ => config.quality.ratio,
@@ -546,6 +541,10 @@ impl EnhancedVideoEncoder {
         self.config.width * 4
     }
 
+    pub fn yuv_format(&self) -> Option<EncodeYuvFormat> {
+        self.encoder.as_ref().map(|enc| enc.yuvfmt())
+    }
+
     pub fn set_quality(&mut self, quality: f32) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(ref mut encoder) = self.encoder {
             encoder.set_quality(quality)?;
@@ -553,81 +552,13 @@ impl EnhancedVideoEncoder {
         }
         Ok(())
     }
-    pub fn encode_frame(
+    pub fn encode_input(
         &mut self,
-        frame_data: &[u8],
-        stride: usize,
+        encode_input: EncodeInput,
         timestamp_ms: i64,
     ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
         let encode_start = Instant::now();
         let width = self.config.width;
-        let height = self.config.height;
-        if frame_data.is_empty() {
-            warn!(
-                "Invalid frame data: empty buffer for stride {} ({}x{})",
-                stride, width, height
-            );
-            return Ok(None);
-        }
-        if (frame_data.as_ptr() as usize) % 4 != 0 {
-            warn!(
-                "Frame data not 4-byte aligned (ptr {:p}) - skipping frame {}",
-                frame_data.as_ptr(),
-                self.frame_count
-            );
-            return Ok(None);
-        }
-        let actual_width = stride / 4;
-        let actual_height = frame_data.len() / stride;
-
-        if actual_width != self.config.width || actual_height != self.config.height {
-            warn!(
-                "Resolution mismatch: frame data is {}x{}, encoder expects {}x{}",
-                actual_width, actual_height, self.config.width, self.config.height
-            );
-            return Ok(None);
-        }
-        let min_stride = actual_width * 3;
-        let expected_stride = actual_width * 4;
-        let max_stride = actual_width * 8;
-        if stride < min_stride {
-            if self.frame_count % 50 == 0 {
-                warn!(
-                    "Stride too small: {} < {} (min for {}x{}), attempting correction",
-                    stride, min_stride, actual_width, actual_height
-                );
-            }
-            let corrected_stride = if stride >= actual_width * 3 {
-                stride
-            } else {
-                expected_stride
-            };
-            return self.encode_frame(frame_data, corrected_stride, timestamp_ms);
-        }
-        if stride > max_stride {
-            if self.frame_count % 50 == 0 {
-                warn!(
-                    "Stride unusually large: {} > {} (max for {}x{}), proceeding with caution",
-                    stride, max_stride, actual_width, actual_height
-                );
-            }
-        }
-        let expected_data_size = actual_height * stride;
-        if frame_data.len() < expected_data_size {
-            warn!(
-                "Insufficient frame data: {} bytes, expected: {}",
-                frame_data.len(),
-                expected_data_size
-            );
-            return Ok(None);
-        }
-        let yuv_data = match self.yuv_converter.convert(frame_data, stride) {
-            Ok(data) => data,
-            Err(e) => {
-                warn!("YUV conversion failed on frame {}: {}", self.frame_count, e);
-                return Ok(None);
-            }
-        };
 
         if self.dummy_mode || self.encoder.is_none() {
             debug!("Dummy mode: returning fake encoded data");
@@ -637,7 +568,6 @@ impl EnhancedVideoEncoder {
             return Ok(Some(fake_data));
         }
 
-        let encode_input = EncodeInput::YUV(yuv_data);
         let encode_start_time = Instant::now();
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             self.encoder
