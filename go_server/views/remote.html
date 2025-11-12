@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KVM Agent</title>
+  <link rel="stylesheet" href="styles/style.css">
+  <link rel="stylesheet" href="styles/topbar.css">
+  <link rel="stylesheet" href="styles/tool.css">
+
+  <script type="module" src="./scripts/main.js"></script>
+
+  <style>
+    :root {
+      --bg-color-light: #f8f9fa;
+      --text-color-light: #212529;
+      --bg-color-dark: #343a40;
+      --text-color-dark: #ffffff;
+      --bg-color-blue: #007bff;
+      --text-color-blue: #ffffff;
+      --topbar-height: 60px;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .device-button {
+      padding: 10px;
+      margin: 10px;
+      cursor: pointer;
+    }
+
+    #main-container {
+      display: none;
+      height: 100vh;
+      width: 100vw;
+      overflow: auto;
+      position: relative;
+    }
+
+    #dropdown {
+      position: relative;
+      z-index: 1001;
+    }
+
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: white;
+      margin: 5% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 50%;
+    }
+
+    .modal-header,
+    .modal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .close {
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: white;
+      margin: 5% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 50%;
+    }
+
+    .modal-header,
+    .modal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+
+    #filetransfer-view {
+      flex: 1;
+      background: #f5f5f5;
+      display: none;
+      flex-direction: column;
+    }
+
+    #filetransfer-view.show {
+      display: flex;
+    }
+
+    .file-toolbar {
+      background: #f0f0f0;
+      border-bottom: 1px solid #ccc;
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .toolbar-btn {
+      background: #e0e0e0;
+      border: 1px solid #ccc;
+      padding: 4px 8px;
+      margin-right: 5px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .toolbar-btn.connected {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .file-main-toolbar {
+      background: #f8f9fa;
+      border-bottom: 1px solid #ddd;
+      padding: 8px 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .main-btn {
+      background: #e9ecef;
+      border: 1px solid #ced4da;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      border-radius: 3px;
+    }
+
+    .main-btn:hover {
+      background: #dee2e6;
+    }
+
+    .breadcrumb-container {
+      background: #ffffff;
+      border-bottom: 1px solid #ddd;
+      padding: 8px 12px;
+      font-family: monospace;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+    }
+
+    .breadcrumb-label {
+      margin-right: 10px;
+      font-weight: bold;
+    }
+
+    .breadcrumb-path {
+      color: #007bff;
+    }
+
+    .file-content-area {
+      flex: 1;
+      display: flex;
+      background: white;
+    }
+
+    .file-list-container {
+      flex: 2;
+      border-right: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .file-list-header {
+      background: #f8f9fa;
+      border-bottom: 1px solid #ddd;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      font-weight: bold;
+      font-size: 13px;
+    }
+
+    .file-header-checkbox {
+      width: 30px;
+    }
+
+    .file-header-name {
+      flex: 1;
+      color: #007bff;
+      cursor: pointer;
+    }
+
+    .file-header-size {
+      width: 100px;
+      text-align: right;
+      padding-right: 30px;
+    }
+
+    .file-header-date {
+      width: 140px;
+      text-align: right;
+      padding-right: 70px;
+    }
+
+    .file-list {
+      flex: 1;
+      overflow-y: auto;
+      background: white;
+    }
+
+    .file-item {
+      padding: 4px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .file-item:hover {
+      background-color: #f8f9fa;
+    }
+
+    .file-item.selected {
+      background-color: #e3f2fd;
+    }
+
+    .file-item-checkbox {
+      width: 30px;
+    }
+
+    .file-item-icon {
+      width: 20px;
+      margin-right: 8px;
+    }
+
+    .file-item-name {
+      flex: 1;
+      color: #007bff;
+    }
+
+    .file-item-size {
+      width: 100px;
+      text-align: right;
+      width: 160px;
+      padding-left: 8px;
+      padding-right: 60px;
+      color: #333;
+      font-family: monospace;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .file-item-date {
+      width: 160px;
+      padding-left: 8px;
+      color: #333;
+      font-family: monospace;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .file-details-panel {
+      flex: 1;
+      background: #f8f9fa;
+      padding: 12px;
+    }
+
+    .file-details-header {
+      margin-bottom: 15px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .file-details-header select {
+      padding: 4px;
+      border: 1px solid #ccc;
+      font-size: 12px;
+    }
+
+    .loading-message {
+      padding: 40px;
+      text-align: center;
+      color: #666;
+      font-style: italic;
+    }
+
+    .no-selection {
+      color: #666;
+      font-style: italic;
+    }
+
+    .breadcrumb {
+      background: #f0f0f0;
+      padding: 8px 12px;
+      font-family: monospace;
+      font-size: 12px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .status-message {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      display: none;
+    }
+
+    .status-message.info {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+
+    .status-message.error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+
+    #btn-connect {
+      background-color: #d0ebff;
+      color: #084298;
+      border: 1px solid #a5d8ff;
+    }
+
+    #btn-disconnect {
+      background-color: #ffe3e3;
+      color: #842029;
+      border: 1px solid #f5c2c7;
+    }
+
+    #btn-connected {
+      background-color: #d3f9d8;
+      color: #2b8a3e;
+      border: 1px solid #b2f2bb;
+    }
+
+    #btn-disconnected {
+      background-color: #f1f3f5;
+      color: #495057;
+      border: 1px solid #dee2e6;
+    }
+
+
+    .toolbar-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #topbar-nav {
+      background-color: #2d2d2d;
+      color: white;
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    #topbar-nav button {
+      background-color: #444;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      margin-right: 10px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    #topbar-nav button:hover {
+      background-color: #007bff;
+    }
+
+
+    #join-menu {
+      padding-top: 60px;
+    }
+
+    .chat-window {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 350px;
+      height: 400px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column;
+      z-index: 9999;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .chat-window.hidden {
+      display: none !important;
+    }
+
+    .chat-header {
+      background: #f0f0f0;
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      max-height: 300px;
+    }
+
+    .chat-input-container {
+      padding: 10px;
+      border-top: 1px solid #ddd;
+      display: flex;
+      gap: 5px;
+    }
+
+    .chat-input-container input {
+      flex: 1;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+
+    .chat-input-container button {
+      padding: 5px 10px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #666;
+    }
+
+
+
+    #tool {
+      display: none;
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #eee;
+      padding: 20px 30px;
+      border-radius: 8px;
+      z-index: 2000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+
+    #menucir {
+      width: 24px;
+      height: 12px;
+      background-color: #12a629;
+      border-bottom-left-radius: 25px;
+      border-bottom-right-radius: 25px;
+      top: -2px;
+      left: 50%;
+      position: absolute;
+      box-shadow: 0px 3px 2px #aaa, inset 0px 2px 3px #fff;
+    }
+
+    .quality-control {
+      display: none;
+      /* Hide initially */
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border: 1px solid #ccc;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 50px;
+    }
+
+    #desktop-view {
+      width: 100%;
+      height: calc(100vh - var(--topbar-height));
+      display: flex;
+      flex-direction: column;
+    }
+
+    #DeskParent {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      background: black;
+    }
+
+    :fullscreen #DeskParent {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    :fullscreen canvas#Desk {
+      width: 100vw !important;
+      height: 100vh !important;
+      display: block;
+    }
+
+    canvas#Desk {
+      width: 100%;
+      display: block;
+    }
+
+    #details-container {
+      color: #333;
+      font-family: sans-serif;
+    }
+
+    #details-container h2 {
+      margin-bottom: 10px;
+      color: #003366;
+    }
+
+    #details-container p,
+    li {
+      font-size: 14px;
+    }
+
+    .notice-box {
+      border: 1px solid gray;
+      border-radius: 5px;
+      padding: 15px;
+      margin: 0 auto;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      width: 20%;
+      position: center;
+      background-color: gray;
+    }
+
+    .notice-box h2 {
+      margin: 0 0 10px;
+      color: white;
+      background-color: gray;
+    }
+
+    .notice-box p {
+      margin: 0;
+      color: red;
+      background-color: white;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .notice-box button {
+      background-color: #856404;
+      color: white;
+      border: 1px;
+      border-radius: 5px;
+      padding: 10px;
+      margin: 10px;
+      cursor: pointer;
+    }
+
+    .notice-box button:hover {
+      background-color: #705c03;
+    }
+
+    .notice-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="join-menu">
+    {{ range $key, $val := .Devices }}
+    <button class="device-button" data-device="{{$val}}" id="Device-Icon-{{$val}}">{{$key}}</button>
+    {{ end }}
+  </div>
+
+  <div id="main-container">
+
+    <div id="topbar-nav">
+      <button class="tab selected" id="tab-desktop"> Desktop</button>
+      <button class="tab" id="tab-file">📁 File Manager</button>
+
+      <div class="tab" id="details-section">ℹ️ Details</div>
+      <div class="tab" id="software-section"> Installed Applications</div>
+      <button onclick="window.chatClient?.toggleChatWindow()" title="Toggle Chat">
+        💬 Chat
+      </button>
+    </div>
+    <div id="desktop-view">
+      <div id="tool">
+        <button id="refresh">Refresh</button>
+        <button id="EI">Encoder Information</button>
+         <label>
+          <input type="checkbox" id="EnableMouse">
+          Enable Mouse
+        </label>
+        <div class="quality-control" id="quality-control">
+          <table>
+            <tr>
+              <td><label for="dropdown">Encoder:</label></td>
+              <td>
+                <select id="dropdown">
+                  <option value="jpeg">JPEG</option>
+                  <option value="png">PNG</option>
+                  <option value="tiff">TIFF</option>
+                  <option value="webp">WEBP</option>
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <td><label for="slider">Rendering quality:</label></td>
+              <td><input type="range" id="slider" min="0" max="100" value="50"></td>
+              <td><span id="sliderValue">50</span></td>
+            </tr>
+          </table>
+          <br><br>
+          <button id="update-compression">Save</button>
+          <p id="output"></p>
+        </div>
+      </div>
+
+      <div id="DeskParent">
+        <div class="toolbar" id="toolbar">
+          <button class="ncmenu">☰</button>
+          <button class="ncpin">📌</button>
+          <button class="ncpin"><span class="conn_status" id="conn_status"></span></button>
+          <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);" id="nctitle">RDP
+            120</span>
+          <button style="margin-left: auto;" class="ncfullscreen">🔲</button>
+          <button class="ncclose"></button>
+        </div>
+         <div id="menucir" class="menucir"></div>
+        <div id="load-gif-box" class="notice-overlay" style="display: none;">
+          <div class="notice-box">
+            <h2>Notice</h2>
+            <p>Please wait, trying to connect...</p>
+            <img src="/img/progress_anim.gif" alt="Loading..." style="width: 100px; margin-top: 15px;">
+          </div>
+        </div>
+        <canvas id="Desk" oncontextmenu="return false" width="1090" height="1080"></canvas>
+      </div>
+    </div>
+    <div id="details-container" style="display:none; padding: 20px;"></div>
+    <div id="software-container" style="display:none; padding: 20px;"></div>
+    <div id="chat-container" style="display:none; padding: 20px;">
+      <!-- Chat interface will be created here by chatClient.js -->
+    </div>
+    <div id="filetransfer-view" style="display: none;">
+      <div class="file-toolbar">
+        <div class="file-toolbar-left">
+          <button id="btn-connect" class="toolbar-btn">Connect</button>
+          <button id="btn-disconnected" class="toolbar-btn" disabled
+            style="display: inline-block;">Disconnected</button>
+          <button id="btn-disconnect" class="toolbar-btn" style="display: none;">Disconnect</button>
+          <button id="btn-connected" class="toolbar-btn" disabled style="display: none;">Connected</button>
+        </div>
+        <div class="file-toolbar-right">
+        </div>
+      </div>
+      <div class="file-main-toolbar">
+        <button id="btn-back" class="main-btn" disabled>⬅️ Up</button>
+        <button id="btn-select-all" class="main-btn" disabled>Select All</button>
+        <button id="btn-rename" class="main-btn" disabled>Rename</button>
+        <button id="btn-delete" class="main-btn" disabled>Delete</button>
+        <button id="btn-edit" class="main-btn" disabled>Edit</button>
+        <button id="btn-create-folder" class="main-btn" disabled>New Folder</button>
+        <button id="btn-upload" class="main-btn" disabled>Upload</button>
+        <button id="btn-download" class="main-btn" disabled>Download</button>
+        <button id="btn-cut" class="main-btn" disabled>Cut</button>
+        <button id="btn-copy" class="main-btn" disabled>Copy</button>
+        <button id="btn-paste" class="main-btn" disabled>Paste</button>
+        <button id="btn-zip" class="main-btn" disabled>Zip</button>
+        <button id="btn-unzip" class="main-btn" disabled>Unzip</button>
+        <button id="btn-refresh" class="main-btn" disabled>Refresh</button>
+        <button id="btn-find" class="main-btn" disabled>Find</button>
+        <button id="btn-goto" class="main-btn" disabled>GoTo</button>
+        <button id="btn-open" class="main-btn" disabled>Open</button>
+      </div>
+    </div>
+
+    <div class="breadcrumb-container"
+      style="display: flex; justify-content: space-between; align-items: center; padding-right: 20px;">
+      <div>
+        <span class="breadcrumb-label"></span>
+        <span id="current-path" class="breadcrumb-path">C:</span>
+      </div>
+      <select id="sort-mode" class="main-btn" style="font-size: 12px; padding: 4px 6px;">
+        <option value="type">Sort by type</option>
+        <option value="name">Sort by name</option>
+        <option value="size">Sort by size</option>
+        <option value="date">Sort by date</option>
+      </select>
+    </div>
+    <div class="file-content-area">
+      <div class="file-list-container">
+        <div id="file-table-header" style="display: none;height: 0; overflow: hidden; visibility: hidden;">
+          <div class="file-list-header">
+            <div class="file-header-checkbox">
+              <input type="checkbox" id="select-all-checkbox">
+            </div>
+            <div class="file-header-name">Name</div>
+            <div class="file-header-size">Size</div>
+            <div class="file-header-date">Date</div>
+          </div>
+        </div>
+
+        <div class="file-list" id="remote-file-list" style="display: none;">
+          <div class="loading-message">
+            <!-- Loading directory contents... -->
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="status-message" id="status-message"></div>
+
+  </div>
+
+  </div>
+  <div id="details-container" style="display:none; padding: 20px;"></div>
+  <div id="software-container" style="display:none; padding: 20px;"></div>
+
+  <div id="editDialog" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span id="editDialogTitle">Edit File</span>
+        <span class="close" onclick="closeEditDialog()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <textarea id="editTextarea" style="width:100%; height:400px;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button onclick="saveEditedFile()">OK</button>
+        <button onclick="closeEditDialog()">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div id="uploadDialog" class="modal" style="display: none;">
+    <div class="modal-content" id="uploadDialogBox" style="width: 400px;">
+      <div class="modal-header" id="uploadDialogHeader" style="cursor: move;">
+        <span><b>Upload File</b></span>
+        <span class="close" onclick="closeUploadDialog()">&times;</span>
+      </div>
+      <div class="modal-body" style="margin-top: 10px;">
+        <input type="file" id="uploadFileInput" />
+      </div>
+      <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: space-between;">
+        <button id="uploadOkBtn">OK</button>
+        <button onclick="closeUploadDialog()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Open Folder Confirmation Dialog -->
+  <div id="openDialog" class="modal" style="display: none;">
+    <div class="modal-content" id="openDialogBox" style="width: 400px;">
+      <div class="modal-header" id="openDialogHeader" style="cursor: move;">
+        <span><b>Open File/Folder</b></span>
+        <span class="close" onclick="closeOpenDialog()">&times;</span>
+      </div>
+      <div class="modal-body" style="margin-top: 10px;">
+        Are you sure you want to open this file/folder on the remote device's desktop?
+      </div>
+      <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: space-between;">
+        <button onclick="sendOpenRequest()">OK</button>
+        <button onclick="closeOpenDialog()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- General-Purpose Draggable Input Dialog -->
+  <div id="customInputDialog" class="modal" style="display: none;">
+    <div class="modal-content" id="customInputDialogBox">
+      <div class="modal-header" id="customInputDialogHeader" style="cursor: move;">
+        <span id="customInputDialogTitle">Dialog Title</span>
+        <span class="close" onclick="closeCustomInputDialog()">&times;</span>
+      </div>
+      <div class="modal-body" style="margin-top: 10px;">
+        <p id="customInputDialogMessage">Enter value:</p>
+        <input type="text" id="customInputDialogInput" style="width: 100%; margin-top: 10px;" />
+      </div>
+      <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: space-between;">
+        <button onclick="submitCustomInputDialog()">OK</button>
+        <button onclick="closeCustomInputDialog()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Universal Dialog Box -->
+  <div id="meshDialog" class="modal" style="display: none;">
+    <div class="modal-content" id="meshDialogBox" style="width: 400px;">
+      <div class="modal-header" id="meshDialogHeader"
+        style="background: #003366; color: white; padding: 8px; font-weight: bold; cursor: move;">
+        <span id="meshDialogTitle">Dialog Title</span>
+        <span class="close" onclick="closeMeshDialog()" style="color: white;">&times;</span>
+      </div>
+      <div class="modal-body" style="margin-top: 10px;">
+        <p id="meshDialogMessage">Dialog message goes here.</p>
+        <input type="text" id="meshDialogInput" style="width: 100%; margin-top: 10px; display: none;" />
+        <div id="meshDialogCheckboxContainer" style="margin-top: 10px; display: none;">
+          <input type="checkbox" id="meshDialogCheckbox" />
+          <label for="meshDialogCheckbox" id="meshDialogCheckboxLabel">Checkbox</label>
+        </div>
+        <textarea id="meshDialogTextArea" rows="6" style="width: 100%; margin-top: 10px; display: none;"></textarea>
+
+      </div>
+      <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: space-between;">
+        <button id="meshDialogOkBtn"
+          style="background-color: #003366; color: white; border: none; padding: 6px 12px; border-radius: 3px;">OK</button>
+        <button onclick="closeMeshDialog()" style="padding: 6px 12px; border-radius: 3px;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      requestRemoteFileList,
+      setupFileTransferButtons,
+      downloadFile,
+      navigateToPath,
+      showStatus,
+      hideStatus,
+      formatFileSize,
+      displayRemoteFileList,
+      selectFile,
+      deleteRemoteFile,
+      createRemoteFolder,
+      handleFileDownload,
+      makeDialogDraggable,
+      updateConnectionStatus,
+    } from "./scripts/fileManagerTab.js";
+    import { loadKVM, initializeDesktopConnection } from "./scripts/main.js";
+    import { setupTabNavigation } from "./scripts/tabNavigation.js";
+    import { setupQualityControl, toggleFullScreen, updateEncoderSettings } from "./scripts/monitor.js";
+    import { initializeHTTPClient } from "./scripts/httpClient.js";
+    import { ChatClient } from "./scripts/chatClient.js";
+    window.requestRemoteFileList = requestRemoteFileList;
+    window.downloadFile = downloadFile;
+    window.navigateToPath = navigateToPath;
+    window.showStatus = showStatus;
+    window.hideStatus = hideStatus;
+    window.formatFileSize = formatFileSize;
+    window.toggleFullScreen = toggleFullScreen;
+    window.initializeHTTPClient = initializeHTTPClient;
+    window.displayRemoteFileList = displayRemoteFileList;
+    window.selectFile = selectFile;
+    window.deleteRemoteFile = deleteRemoteFile;
+    window.createRemoteFolder = createRemoteFolder;
+    window.handleFileDownload = handleFileDownload;
+    window.updateEncoderSettings = updateEncoderSettings;
+    window.updateConnectionStatus = updateConnectionStatus;
+    window.refresh = refresh;
+    window.setupTabNavigation = setupTabNavigation;
+    window.setupFileTransferButtons = setupFileTransferButtons;
+    window.makeDialogDraggable = makeDialogDraggable;
+    window.websocket = null;
+    window.currentRemotePath = "C:/";
+    window.selectedFileItem = null;
+    window.currentDevice = null;
+    window.chatClient = null;
+
+    // Connect to a remote device
+    async function connectRemote(name, deviceId) {
+      window.desktopConnectionInProgress = true;
+      window.desktopConnected = false;
+      const loader = document.getElementById("load-gif-box");
+      if (loader) loader.style.display = "flex";
+      window.currentDevice = { name, id: deviceId };
+      // Fetch the agent key dynamically
+      try {
+        const response = await fetch(`/api/v1/agents/keys/${name}`);
+        const agentData = await response.json();
+
+        if (agentData.key) {
+          // Initialize chat client with dynamic key
+          if (window.chatClient) {
+            window.chatClient.socket1?.close();
+          }
+          window.chatClient = new ChatClient(name, deviceId);
+        } else {
+          console.error('Failed to fetch agent key for:', name);
+          // Fallback to deviceId if API fails
+          window.chatClient = new ChatClient(name, deviceId);
+        }
+      } catch (error) {
+        console.error('Error fetching agent key:', error);
+        // Fallback to deviceId if API fails
+        window.chatClient = new ChatClient(name, deviceId);
+      }
+      // Create chat UI if it doesn't exist
+      const chatContainer = document.getElementById('chat-container');
+      if (chatContainer && !document.getElementById('chat-window')) {
+        window.chatClient.createChatWindow();
+      }
+
+      loadKVM(name, deviceId);
+
+      document.getElementById("main-container").style.display = "block";
+      document.getElementById("join-menu").style.display = "none";
+      document.getElementById("nctitle").innerText = name;
+
+      if (typeof initializeDesktopConnection === 'function') {
+        initializeDesktopConnection();
+      }
+
+      const canvas = document.getElementById("Desk");
+      if (canvas) {
+        setTimeout(() => {
+          canvas.width = canvas.clientWidth;
+          canvas.height = canvas.clientHeight;
+
+          const ctx = canvas.getContext("2d");
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }, 100);
+      }
+    }
+
+    // Refresh logic
+    function refresh() {
+      setTimeout(() => {
+        document.getElementById("refresh").click();
+      }, 2000);
+    }
+
+    // Set up buttons for device list
+    function setupDeviceButtons() {
+      document.querySelectorAll(".device-button").forEach(button => {
+        button.addEventListener("click", () => {
+          const deviceId = button.dataset.device;// client's public key
+          const name = button.innerHTML; // tenantId
+          connectRemote(name, deviceId);
+        });
+      });
+    }
+    window.hideConnectionLoader = function () {
+      window.desktopConnectionInProgress = false;
+      window.desktopConnected = true;
+
+      const loader = document.getElementById("load-gif-box");
+      if (loader) {
+        loader.style.display = "none";
+      }
+    };
+
+    // DOM ready initializer
+    document.addEventListener("DOMContentLoaded", () => {
+      // Setup all major handlers
+      setupDeviceButtons();
+      setupTabNavigation();
+      setupFileTransferButtons();
+      setupQualityControl();
+
+      // Initialize desktop view as default since desktop tab is pre-selected
+      document.getElementById("desktop-view").style.display = "flex";
+      document.getElementById("menucir").style.display = "";
+      document.getElementById("tool").style.display = "";
+      document.getElementById("quality-control").style.display = "";
+
+      // Hide file transfer elements by default
+      document.getElementById("filetransfer-view").style.display = "none";
+      document.querySelector(".breadcrumb-container").style.display = "none";
+      document.getElementById("file-table-header").style.display = "none";
+      document.getElementById("details-container").style.display = "none";
+
+      // Setup draggable dialogs
+      makeDialogDraggable("openDialogBox", "openDialogHeader");
+      makeDialogDraggable("customInputDialogBox", "customInputDialogHeader");
+      makeDialogDraggable("meshDialogBox", "meshDialogHeader");
+
+      // Optional: refresh loop
+      setTimeout(refresh, 2000);
+    });
+  </script>
+
+</body>
+
+</html>

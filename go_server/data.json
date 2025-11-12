@@ -1,0 +1,105 @@
+{
+  "agent_permission": {
+    "23fcc1f38a45c3b8f85a253b5386cbc9": {
+      "Devices": "ASUS2, ASUS5, Chinu_Chinu"
+    },
+    "7f6e7723225bc2c7a5613caab64629de": {
+      "Devices": "Patil"
+    }
+  },
+  "agents": {
+    "ACER1": {
+      "key": "12es324b5e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC42LjEyNC1zYXVyYXZ2dnZ2dnZ2dnZ2dnZ2",
+      "publickey": "cee7323cbc854b0b10656ffb05e15f27"
+    },
+    "ASU8": {
+      "key": "5655e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC42LjEyNC1zYXVyYXZ2dnZ2dnZ2dnZ2dnZ2",
+      "publickey": "8e4c0c35164de91b94e3b225bcca88f7"
+    },
+    "ASUS1": {
+      "key": "123da4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC42LjEyNC1zYXVyYXZ2dnZ2dnZ2dnZ2dnZ2",
+      "publickey": "9abbbb825f103fcbd2ffdcbd83f06ba0"
+    },
+    "ASUS2": {
+      "key": "21d5e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC42LjEyNC1zYXVyYXZ2dnZ2dnZ2dnZ2dnZ2",
+      "publickey": "64d41e5338967a96a3e20d7f2d555319"
+    },
+    "ASUS3": {
+      "key": "154e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC42LjEyNC1zYXVyYXZ2dnZ2dnZ2dnZ2dnZ2",
+      "publickey": "36d5ac4e74f60d347a80a25483bce7cc"
+    },
+    "ASUS5": {
+      "key": "fwsf5e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC42LjEyNC1zYXVyYXZ2dnZ2dnZ2dnZ2dnZ2",
+      "publickey": "ed0927c02e1276e15b9d2f54854525c4"
+    },
+    "Chinu_Chinu": {
+      "key": "f6c347c7-de18-4fdc-bf72-3d6497eb2276-d3NzOi8vMTkyLjE2OC4wLjE2LUNoaW51X0NoaW51",
+      "publickey": "03717b4e1df5fc6cb44287f25e29a55d"
+    },
+    "Patil": {
+      "key": "a9a791b9-562f-49c0-9aa7-c0e7c6a58504-d3NzOi8vMTkyLjE2OC4wLjE2LVBhdGls",
+      "publickey": "d346240ebf5217483f614feddbf30ee9"
+    },
+    "Saurav_Saurav": {
+      "key": "57b5e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC4wLjE2LVNhdXJhdl9TYXVyYXY=",
+      "publickey": "7d731db18e0da9bafeb7f33874feb11a"
+    },
+    "Saurav_laptop11": {
+      "key": "7b61d78c-45e6-48bf-b192-15baf8a5735b-d3NzOi8vMTkyLjE2OC4wLjE2LVNhdXJhdl9sYXB0b3AxMQ==",
+      "publickey": "285a3a56d2a34fcf8f8aa848e8d95e33"
+    },
+    "Saurav_laptop12": {
+      "key": "7b61d78c-45e6-48bf-b192-15baf8a5735b-d3NzOi8vMTkyLjE2OC4wLjE2LVNhdXJhdl9sYXB0b3AxMg==",
+      "publickey": "bc48ed95ed1c6f3a833cf383b279d6eb"
+    },
+    "Saurav_laptop9": {
+      "key": "7b61d78c-45e6-48bf-b192-15baf8a5735b-d3NzOi8vMTkyLjE2OC4wLjE2LVNhdXJhdl9sYXB0b3A5",
+      "publickey": "441ab8e3e75901334d43484529184bb4"
+    },
+    "Saurav_pc2": {
+      "key": "57b5e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC4wLjE2LVNhdXJhdl9wYzI=",
+      "publickey": "412c61836e47f0c00957a6bbcf575402"
+    },
+    "dadsa": {
+      "key": "57b5e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC4wLjE2LWRhZHNh",
+      "publickey": "4afcc5e4a44bb0d6f7a2e5f016f932a0"
+    },
+    "saurav1": {
+      "key": "57b5e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC42LjIzLXNhdXJhdjE=",
+      "publickey": "c99a0a264200a12ff666e98bdd461ef8"
+    },
+    "saurav_123": {
+      "key": "7b61d78c-45e6-48bf-b192-15baf8a5735b-d3NzOi8vMTkyLjE2OC4wLjE2LXNhdXJhdl8xMjM=",
+      "publickey": "8bbc0b2af37e5fb458a02fce8a0e3333"
+    },
+    "saurav_local_pc19": {
+      "key": "aef04f22-fec8-4381-b965-0e9f2cbec6f7-d3NzOi8vMTkyLjE2OC4wLjE2LXNhdXJhdl92bV82LjEyNA==",
+      "publickey": "547a2ce7992d930f80e97a0a9f8e6e0b"
+    },
+    "saurav_local_pc_98": {
+      "key": "57b5e5a4-fc13-4dc5-8622-ad5ca9a2c437-d3NzOi8vMTkyLjE2OC4wLjE2LXNhdXJhdl9sb2NhbF9wY185OA==",
+      "publickey": "6d19f226dc22f316fb759efa9298712e"
+    },
+    "saurav_vm_6.124": {
+      "key": "a3304f22-fec8-4381-b965-0e9f2cbec6f7-d3NzOi8vMTkyLjE2OC4wLjE2LXNhdXJhdl92bV82LjEyNA==",
+      "publickey": "f1ca69c93dae82c68ce486fb7764f7c2"
+    }
+  },
+  "user": {
+    "02d0c323caa075441c9a494a57d4df6c": {
+      "email": "admin@gmail.com",
+      "fullName": "Patil",
+      "phone": "9606802838"
+    },
+    "23fcc1f38a45c3b8f85a253b5386cbc9": {
+      "email": "saurav@cachatto.com",
+      "fullName": "SAURAV",
+      "phone": "9122312454"
+    },
+    "7f6e7723225bc2c7a5613caab64629de": {
+      "email": "babu@cachatto.com",
+      "fullName": "BABUGOUDA",
+      "phone": "8105223057"
+    }
+  }
+}
